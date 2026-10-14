@@ -18,7 +18,10 @@ const SHORT_JUMP_VELOCITY = -380;
 const FAST_FALL = 3;         // gravitationsfaktor när man trycker ner i luften
 const PTERO_FROM_SCORE = 250;
 const NIGHT_EVERY = 700;
-const HISCORE_KEY = 'dino.hiscore';
+const SCORES_KEY = 'dino.scores';
+const LEGACY_HISCORE_KEY = 'dino.hiscore';
+const NAME_KEY = 'dino.name';
+const MAX_SCORES = 10;
 
 // ---------------------------------------------------------------------------
 // Sprites ('#' = pixel). Varje sprite får bredd/höjd i spritepixlar.
@@ -223,24 +226,112 @@ const sound = {
 };
 
 // ---------------------------------------------------------------------------
-// Highscore
+// Topplista (sparas i webbläsarens localStorage)
 // ---------------------------------------------------------------------------
-function loadHiscore() {
-  try { return Number(localStorage.getItem(HISCORE_KEY)) || 0; } catch (_) { return 0; }
+function storageGet(key) {
+  try { return localStorage.getItem(key); } catch (_) { return null; }
 }
-function saveHiscore(value) {
-  try { localStorage.setItem(HISCORE_KEY, String(value)); } catch (_) { /* ignorera */ }
+function storageSet(key, value) {
+  try { localStorage.setItem(key, value); } catch (_) { /* ignorera */ }
 }
+
+function loadScores() {
+  let list = [];
+  try { list = JSON.parse(storageGet(SCORES_KEY)) || []; } catch (_) { list = []; }
+  list = list.filter(e => e && typeof e.name === 'string' && Number.isFinite(e.score));
+  // Flytta över rekordet från den tidigare versionen som saknade namn
+  const legacy = Number(storageGet(LEGACY_HISCORE_KEY)) || 0;
+  if (list.length === 0 && legacy > 0) list.push({ name: '???', score: legacy, date: Date.now() });
+  return list.sort((a, b) => b.score - a.score).slice(0, MAX_SCORES);
+}
+
+function saveScores(list) {
+  storageSet(SCORES_KEY, JSON.stringify(list));
+}
+
+function qualifies(score) {
+  const list = state.scores;
+  return score > 0 && (list.length < MAX_SCORES || score > list[list.length - 1].score);
+}
+
+function addScore(name, score) {
+  const entry = { name, score, date: Date.now() };
+  state.scores.push(entry);
+  // Vid lika poäng hamnar det äldre resultatet först
+  state.scores.sort((a, b) => b.score - a.score || a.date - b.date);
+  state.scores = state.scores.slice(0, MAX_SCORES);
+  saveScores(state.scores);
+  return entry;
+}
+
+function topScore() {
+  return state.scores.length ? state.scores[0].score : 0;
+}
+
+// ---------------------------------------------------------------------------
+// Topplistans HTML-panel
+// ---------------------------------------------------------------------------
+const board = document.getElementById('board');
+const entryForm = document.getElementById('entry');
+const nameInput = document.getElementById('name');
+const scoreList = document.getElementById('scores');
+const emptyText = document.getElementById('empty');
+
+function renderBoard(latest = null) {
+  scoreList.replaceChildren(...state.scores.map(e => {
+    const li = document.createElement('li');
+    if (e === latest) li.className = 'latest';
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = e.name;
+    const score = document.createElement('span');
+    score.className = 'score';
+    score.textContent = pad(e.score);
+    li.append(name, score);
+    return li;
+  }));
+  emptyText.hidden = state.scores.length > 0;
+}
+
+function showEntry() {
+  entryForm.hidden = false;
+  nameInput.value = storageGet(NAME_KEY) || '';
+  nameInput.focus();
+  nameInput.select();
+}
+
+function finishEntry(name) {
+  entryForm.hidden = true;
+  nameInput.blur();
+  let latest = null;
+  if (name !== null) {
+    name = name.trim().toUpperCase().slice(0, 12) || 'ANONYM';
+    storageSet(NAME_KEY, name);
+    latest = addScore(name, state.score);
+  }
+  renderBoard(latest);
+  state.overAt = performance.now();
+  setMode('over');
+}
+
+entryForm.addEventListener('submit', e => {
+  e.preventDefault();
+  finishEntry(nameInput.value);
+});
+
+nameInput.addEventListener('keydown', e => {
+  if (e.key === 'Escape') finishEntry(null); // hoppa över utan att spara
+});
 
 // ---------------------------------------------------------------------------
 // Speltillstånd
 // ---------------------------------------------------------------------------
 const state = {
-  mode: 'start',             // start | running | paused | over
+  mode: 'start',             // start | running | paused | entry | over
   speed: START_SPEED,
   distance: 0,
   score: 0,
-  hiscore: loadHiscore(),
+  scores: [],
   flash: 0,                  // blinkar poängen vid varje 100
   overAt: 0,
   night: false,
@@ -343,7 +434,7 @@ function collides(a, ax, ay, b, bx, by) {
 // ---------------------------------------------------------------------------
 function dinoSprite() {
   const d = state.dino;
-  if (state.mode === 'over') return DINO.dead;
+  if (state.mode === 'over' || state.mode === 'entry') return DINO.dead;
   if (state.mode === 'start' || !d.onGround) return DINO.stand;
   const alt = Math.floor(d.frameTime / 0.1) % 2 === 0;
   if (d.ducking) return alt ? DINO.duckA : DINO.duckB;
@@ -428,13 +519,22 @@ function updateScenery(dx) {
   }
 }
 
+function setMode(mode) {
+  state.mode = mode;
+  board.classList.toggle('hidden', mode === 'running' || mode === 'paused');
+}
+
 function gameOver() {
-  state.mode = 'over';
   state.overAt = performance.now();
+  input.jump = false;
+  input.down = false;
   sound.die();
-  if (state.score > state.hiscore) {
-    state.hiscore = state.score;
-    saveHiscore(state.hiscore);
+  if (qualifies(state.score)) {
+    setMode('entry');
+    showEntry();
+  } else {
+    renderBoard();
+    setMode('over');
   }
 }
 
@@ -466,18 +566,20 @@ function render() {
   ctx.textBaseline = 'top';
   const showScore = state.flash === 0 || Math.floor(state.flash * 4) % 2 === 0;
   const scoreText = showScore ? pad(state.flash > 0 ? Math.floor(state.score / 100) * 100 : state.score) : '     ';
-  ctx.fillText(`HI ${pad(state.hiscore)}  ${scoreText}`, W - 16, 12);
+  ctx.fillText(`HI ${pad(topScore())}  ${scoreText}`, W - 16, 12);
 
   ctx.textAlign = 'center';
   if (state.mode === 'start') {
     ctx.fillText('Tryck SPACE för att starta', W / 2, 80);
   } else if (state.mode === 'paused') {
     ctx.fillText('PAUS – tryck P för att fortsätta', W / 2, 80);
-  } else if (state.mode === 'over') {
+  } else if (state.mode === 'over' || state.mode === 'entry') {
     ctx.font = 'bold 26px "Courier New", monospace';
     ctx.fillText('G A M E   O V E R', W / 2, 62);
     ctx.font = 'bold 16px "Courier New", monospace';
-    ctx.fillText('Tryck SPACE för att spela igen', W / 2, 100);
+    ctx.fillText(state.mode === 'entry'
+      ? `${state.score} poäng – skriv ditt namn nedan`
+      : 'Tryck SPACE för att spela igen', W / 2, 100);
   }
   if (muted) {
     ctx.textAlign = 'left';
@@ -504,24 +606,28 @@ function loop(now) {
 // ---------------------------------------------------------------------------
 function pressJump() {
   if (state.mode === 'start') {
-    state.mode = 'running';
+    setMode('running');
   } else if (state.mode === 'over') {
     if (performance.now() - state.overAt < 500) return; // undvik oavsiktlig omstart
     reset();
-    state.mode = 'running';
+    renderBoard();
+    setMode('running');
+  } else if (state.mode === 'entry') {
+    return;
   }
   input.jump = true;
 }
 
 function togglePause() {
-  if (state.mode === 'running') state.mode = 'paused';
-  else if (state.mode === 'paused') state.mode = 'running';
+  if (state.mode === 'running') setMode('paused');
+  else if (state.mode === 'paused') setMode('running');
 }
 
 const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW'];
 const DOWN_KEYS = ['ArrowDown', 'KeyS'];
 
 document.addEventListener('keydown', e => {
+  if (e.target === nameInput) return; // låt namnfältet ta emot tangenterna
   if (JUMP_KEYS.includes(e.code)) {
     e.preventDefault();
     if (!e.repeat) pressJump();
@@ -544,10 +650,12 @@ canvas.addEventListener('pointerdown', e => { e.preventDefault(); pressJump(); }
 window.addEventListener('pointerup', () => { input.jump = false; });
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && state.mode === 'running') state.mode = 'paused';
+  if (document.hidden && state.mode === 'running') setMode('paused');
 });
 
 // ---------------------------------------------------------------------------
+state.scores = loadScores();
+renderBoard();
 reset();
 initScenery();
 requestAnimationFrame(loop);

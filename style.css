@@ -47,3 +47,73 @@ kbd {
   border-radius: 3px;
   padding: 0 4px;
 }
+
+.board {
+  width: 100%;
+  max-width: 360px;
+  margin-top: 8px;
+}
+
+.board.hidden { visibility: hidden; }
+
+.board h2 {
+  font-size: 16px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-align: center;
+  margin: 12px 0 8px;
+}
+
+.board ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: rank;
+}
+
+.board li {
+  counter-increment: rank;
+  display: flex;
+  gap: 8px;
+  padding: 2px 6px;
+  font-size: 15px;
+}
+
+.board li::before {
+  content: counter(rank) ".";
+  width: 2.5ch;
+  text-align: right;
+}
+
+.board li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board li .score { font-weight: bold; }
+
+.board li.latest {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.empty { text-align: center; font-size: 14px; opacity: 0.7; }
+
+.entry {
+  border: 2px solid var(--fg);
+  padding: 10px 12px;
+}
+
+.entry label { display: block; font-weight: bold; margin-bottom: 6px; }
+
+.entry-row { display: flex; gap: 8px; }
+
+.entry input,
+.entry button {
+  font: inherit;
+  font-size: 16px;
+  color: var(--fg);
+  background: var(--bg);
+  border: 2px solid var(--fg);
+  padding: 4px 8px;
+}
+
+.entry input { flex: 1; min-width: 0; text-transform: uppercase; }
+.entry button { cursor: pointer; font-weight: bold; }
+.entry button:hover { background: var(--fg); color: var(--bg); }
