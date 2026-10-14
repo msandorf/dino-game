@@ -1,0 +1,49 @@
+:root {
+  --bg: #f7f7f7;
+  --fg: #535353;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Courier New", monospace;
+  transition: background 0.6s, color 0.6s;
+}
+
+body.night {
+  --bg: #202124;
+  --fg: #c4c4c4;
+}
+
+main {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+canvas {
+  width: 100%;
+  max-width: 800px;
+  image-rendering: pixelated;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.help {
+  font-size: 13px;
+  text-align: center;
+  opacity: 0.8;
+}
+
+kbd {
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 0 4px;
+}
