@@ -177,6 +177,63 @@ const scenery = {
 };
 
 // ---------------------------------------------------------------------------
+// Music: a sweeping adventure theme in D major (original composition)
+// ---------------------------------------------------------------------------
+const MELODY = [
+  'D5 - - - - - - - A4 - - - B4 - - -',
+  'F#5 - - - - - - - - - - - E5 - - -',
+  'D5 - - - E5 - - - F#5 - - - A5 - - -',
+  'G5 - - - - - - - - - - - - - . .',
+  'F#5 - - - - - - - E5 - - - D5 - - -',
+  'B4 - - - - - - - C#5 - - - D5 - - -',
+  'E5 - - - - - - - A4 - - - - - - -',
+  'D5 - - - - - - - - - - - - - . .',
+  'A5 - - - - - - - F#5 - - - G5 - - -',
+  'A5 - - - - - - - - - - - B5 - - -',
+  'A5 - - - G5 - - - F#5 - - - E5 - - -',
+  'F#5 - - - - - - - - - - - . . . .',
+  'G5 - - - - - - - F#5 - - - E5 - - -',
+  'D5 - - - - - - - B4 - - - D5 - - -',
+  'E5 - - - - - - - - - - - F#5 - E5 -',
+  'D5 - - - - - - - - - - - . . . .',
+].join(' | ');
+
+// One chord per bar: bass root, then the notes the arpeggio walks through
+const CHORDS = {
+  D: ['D2', 'D3', 'A3', 'D4', 'F#4'],
+  Bm: ['B1', 'B2', 'F#3', 'B3', 'D4'],
+  Em: ['E2', 'E3', 'B3', 'E4', 'G4'],
+  G: ['G1', 'G2', 'D3', 'G3', 'B3'],
+  A: ['A1', 'A2', 'E3', 'A3', 'C#4'],
+};
+const PROGRESSION = ['D', 'Bm', 'Em', 'G', 'D', 'Bm', 'A', 'D', 'D', 'G', 'D', 'D', 'G', 'Bm', 'A', 'D'];
+
+const ARPEGGIO = PROGRESSION.map(name => {
+  const [, a, b, c, d] = CHORDS[name];
+  return [a, b, c, d, c, b, c, d].map(n => `${n} -`).join(' ');
+}).join(' | ');
+
+const BASS = PROGRESSION.map(name => {
+  const root = CHORDS[name][0];
+  return `${root} - - - - - - - ${root} - - - - - - -`;
+}).join(' | ');
+
+// Timpani-like kicks on beats 1 and 3, with a roll at the end of each half
+const DRUMS = PROGRESSION.map((_, bar) => (bar % 8 === 7
+  ? 'k . . . k . . . k . k . k k k k'
+  : 'k . . . . . . . k . . . . . . .')).join(' | ');
+
+const MUSIC = {
+  bpm: 100,
+  tracks: [
+    { wave: 'square', volume: 0.05, notes: MELODY },
+    { wave: 'square', volume: 0.018, notes: ARPEGGIO },
+    { wave: 'triangle', volume: 0.16, notes: BASS },
+    { drums: true, volume: 0.22, notes: DRUMS },
+  ],
+};
+
+// ---------------------------------------------------------------------------
 startGame({
   id: 'dino',
   player: DINO,
@@ -190,5 +247,6 @@ startGame({
     },
   ],
   scenery,
+  music: MUSIC,
 });
 })();

@@ -19,7 +19,7 @@ Online: <https://msandorf.github.io/dino-game/> and <https://msandorf.github.io/
 | `Space` / `↑` / `W` | Jump / ollie (hold for a higher jump) |
 | `↓` / `S` | Duck – in the air: fall faster |
 | `P` | Pause |
-| `M` | Sound on/off |
+| `M` | Cycle sound: music + effects → effects only → off (remembered) |
 
 On phones and tablets, tap the game area to jump.
 
@@ -30,6 +30,8 @@ On phones and tablets, tap the game area to jump.
 - Skate: shopping carts roll towards you faster than the street
 - Pixel-perfect collision detection
 - Day/night switch every 700 points
+- 8-bit music, original compositions: a sweeping adventure theme for Dino and a heavy
+  riff for Skate. The tempo rises with the speed.
 - Top 10 high score list per version with name entry after game over, stored in the browser's
   `localStorage`
 
@@ -37,11 +39,12 @@ On phones and tablets, tap the game area to jump.
 
 - `index.html` – the Dino page, `skate/index.html` – the Skate page
 - `style.css` – styling, including night mode and the high score panel
-- `game.js` – the shared engine: physics, obstacle spawning, collisions, sound, high scores
-- `themes/dino.js`, `themes/skate.js` – sprites, obstacle types and scenery for each version
+- `game.js` – the shared engine: physics, obstacle spawning, collisions, sound, music
+  sequencer, high scores
+- `themes/dino.js`, `themes/skate.js` – sprites, obstacle types, scenery and music for each version
 
 ### Adding a version
 
 A theme file defines the player sprites, a list of obstacle types and the scenery, and calls
-`startGame({ id, player, obstacles, scenery })`. See the comment above `chooseSpec()` in
-`game.js` for the obstacle options.
+`startGame({ id, player, obstacles, scenery, music })`. See the comments above `chooseSpec()`
+and `compileSong()` in `game.js` for the obstacle options and the song format.

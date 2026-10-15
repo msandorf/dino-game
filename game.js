@@ -74,25 +74,34 @@ function drawSprite(spr, x, y, color = colors.fg) {
 }
 
 // ---------------------------------------------------------------------------
-// Sound (simple beeps via WebAudio)
+// Sound effects (simple beeps via WebAudio)
 // ---------------------------------------------------------------------------
+const SOUND_MODES = ['all', 'effects', 'off'];  // M cycles through these
+const SOUND_KEY = 'game.sound';
 let audio = null;
-let muted = false;
+let soundMode = SOUND_MODES.includes(storageGet(SOUND_KEY)) ? storageGet(SOUND_KEY) : 'all';
 
-function beep(freq, duration, type = 'square', volume = 0.05) {
-  if (muted) return;
+function getAudio() {
   try {
     audio = audio || new (window.AudioContext || window.webkitAudioContext)();
-    const osc = audio.createOscillator();
-    const gain = audio.createGain();
-    osc.type = type;
-    osc.frequency.value = freq;
-    gain.gain.value = volume;
-    gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + duration);
-    osc.connect(gain).connect(audio.destination);
-    osc.start();
-    osc.stop(audio.currentTime + duration);
-  } catch (_) { /* sound is not critical */ }
+    if (audio.state === 'suspended') audio.resume();
+    return audio;
+  } catch (_) {
+    return null; // sound is not critical
+  }
+}
+
+function beep(freq, duration, type = 'square', volume = 0.05) {
+  if (soundMode === 'off' || !getAudio()) return;
+  const osc = audio.createOscillator();
+  const gain = audio.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.value = volume;
+  gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + duration);
+  osc.connect(gain).connect(audio.destination);
+  osc.start();
+  osc.stop(audio.currentTime + duration);
 }
 
 const sound = {
@@ -100,6 +109,155 @@ const sound = {
   point: () => { beep(880, 0.08); setTimeout(() => beep(1320, 0.12), 90); },
   die: () => { beep(200, 0.15, 'sawtooth'); setTimeout(() => beep(120, 0.25, 'sawtooth'), 120); },
 };
+
+function cycleSoundMode() {
+  soundMode = SOUND_MODES[(SOUND_MODES.indexOf(soundMode) + 1) % SOUND_MODES.length];
+  storageSet(SOUND_KEY, soundMode);
+  if (soundMode !== 'all') stopMusic();
+  else if (state.mode === 'running') startMusic();
+}
+
+// ---------------------------------------------------------------------------
+// Music: a small step sequencer
+//
+// A song has a tempo and a list of tracks. Each track is written as text with
+// one token per 16th note ('|' between bars is only for readability):
+//   C4, F#3, Bb2  start a note      -  holds the previous note      .  silence
+// Drum tracks use k (kick), s (snare) and h (hi-hat); "kh" plays both at once.
+// Track options: wave (oscillator type), volume, fifth (adds a fifth above,
+// for power chords) and drums.
+// ---------------------------------------------------------------------------
+const NOTE_STEPS = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const MUSIC_LOOKAHEAD = 0.12;  // seconds of music scheduled ahead of time
+const MUSIC_SPEEDUP = 0.2;     // tempo is up to 20 % faster at max speed
+
+function noteFrequency(name) {
+  const m = /^([A-G])([#b]?)(\d)$/.exec(name);
+  if (!m) throw new Error(`Unknown note "${name}"`);
+  const midi = NOTE_STEPS[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0) + (Number(m[3]) + 1) * 12;
+  return 440 * 2 ** ((midi - 69) / 12);
+}
+
+function compileSong(song) {
+  const tracks = song.tracks.map((track, i) => {
+    const tokens = track.notes.replace(/\|/g, ' ').trim().split(/\s+/);
+    const events = [];  // events[step] = { freq, steps } or { drums }
+    tokens.forEach((token, step) => {
+      if (token === '.') return;
+      if (token === '-') {
+        const prev = events.findLast(e => e && e.freq);
+        if (prev) prev.steps++;
+        return;
+      }
+      events[step] = track.drums ? { drums: token } : { freq: noteFrequency(token), steps: 1 };
+    });
+    return { ...track, events, length: tokens.length, index: i };
+  });
+  const length = tracks[0].length;
+  const wrong = tracks.find(t => t.length !== length);
+  if (wrong) throw new Error(`Track ${wrong.index} has ${wrong.length} steps, expected ${length}`);
+  return { bpm: song.bpm, tracks, length };
+}
+
+let song = null;
+const music = { timer: null, out: null, step: 0, nextTime: 0 };
+let noiseBuffer = null;
+
+function startMusic() {
+  stopMusic();
+  if (!song || soundMode !== 'all' || !getAudio()) return;
+  music.out = audio.createGain();
+  music.out.connect(audio.destination);
+  music.step = 0;
+  music.nextTime = audio.currentTime + 0.05;
+  music.timer = setInterval(scheduleMusic, 25);
+}
+
+function stopMusic() {
+  clearInterval(music.timer);
+  music.timer = null;
+  if (music.out) {
+    // Fade out quickly so notes already scheduled don't keep ringing
+    const out = music.out;
+    out.gain.setTargetAtTime(0, audio.currentTime, 0.02);
+    setTimeout(() => out.disconnect(), 200);
+    music.out = null;
+  }
+}
+
+function scheduleMusic() {
+  if (state.mode !== 'running') {
+    // Paused: keep the position and pick up from there
+    music.nextTime = audio.currentTime + 0.05;
+    return;
+  }
+  const progress = (state.speed - START_SPEED) / (MAX_SPEED - START_SPEED);
+  const stepTime = 60 / (song.bpm * (1 + MUSIC_SPEEDUP * progress)) / 4;
+  while (music.nextTime < audio.currentTime + MUSIC_LOOKAHEAD) {
+    for (const track of song.tracks) {
+      const event = track.events[music.step];
+      if (!event) continue;
+      if (event.drums) {
+        for (const drum of event.drums) playDrum(drum, music.nextTime, track.volume);
+      } else {
+        playNote(track, event.freq, music.nextTime, event.steps * stepTime);
+      }
+    }
+    music.nextTime += stepTime;
+    music.step = (music.step + 1) % song.length;
+  }
+}
+
+function playNote(track, freq, time, duration) {
+  const gain = audio.createGain();
+  gain.gain.setValueAtTime(0, time);
+  gain.gain.linearRampToValueAtTime(track.volume, time + 0.005);
+  gain.gain.setValueAtTime(track.volume, time + duration * 0.85);
+  gain.gain.linearRampToValueAtTime(0, time + duration * 0.98);
+  gain.connect(music.out);
+  for (const f of track.fifth ? [freq, freq * 1.5] : [freq]) {
+    const osc = audio.createOscillator();
+    osc.type = track.wave || 'square';
+    osc.frequency.value = f;
+    osc.connect(gain);
+    osc.start(time);
+    osc.stop(time + duration);
+  }
+}
+
+function playDrum(kind, time, volume) {
+  const gain = audio.createGain();
+  gain.connect(music.out);
+  if (kind === 'k') {
+    // Kick: a sine wave that drops quickly in pitch
+    const osc = audio.createOscillator();
+    osc.frequency.setValueAtTime(150, time);
+    osc.frequency.exponentialRampToValueAtTime(40, time + 0.12);
+    gain.gain.setValueAtTime(volume * 2, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+    osc.connect(gain);
+    osc.start(time);
+    osc.stop(time + 0.15);
+    return;
+  }
+  // Snare and hi-hat: filtered noise
+  if (!noiseBuffer) {
+    noiseBuffer = audio.createBuffer(1, audio.sampleRate * 0.2, audio.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  }
+  const noise = audio.createBufferSource();
+  noise.buffer = noiseBuffer;
+  const filter = audio.createBiquadFilter();
+  filter.type = 'highpass';
+  filter.frequency.value = kind === 's' ? 1200 : 7000;
+  const length = kind === 's' ? 0.12 : 0.04;
+  gain.gain.setValueAtTime(kind === 's' ? volume : volume * 0.5, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + length);
+  noise.connect(filter).connect(gain);
+  noise.start(time);
+  noise.stop(time + length);
+}
 
 // ---------------------------------------------------------------------------
 // High score list (stored in the browser's localStorage, one list per theme)
@@ -395,6 +553,7 @@ function setMode(mode) {
 
 function gameOver() {
   state.overAt = performance.now();
+  stopMusic();
   input.jump = false;
   input.down = false;
   sound.die();
@@ -450,10 +609,10 @@ function render() {
       ? `${state.score} points – enter your name below`
       : 'Press SPACE to play again', W / 2, 100);
   }
-  if (muted) {
+  if (soundMode !== 'all') {
     ctx.textAlign = 'left';
     ctx.font = '14px "Courier New", monospace';
-    ctx.fillText('sound off (M)', 16, 12);
+    ctx.fillText(soundMode === 'off' ? 'sound off (M)' : 'music off (M)', 16, 12);
   }
 }
 
@@ -476,11 +635,13 @@ function loop(now) {
 function pressJump() {
   if (state.mode === 'start') {
     setMode('running');
+    startMusic();
   } else if (state.mode === 'over') {
     if (performance.now() - state.overAt < 500) return; // avoid accidental restarts
     reset();
     renderBoard();
     setMode('running');
+    startMusic();
   } else if (state.mode === 'entry') {
     return;
   }
@@ -506,7 +667,7 @@ document.addEventListener('keydown', e => {
   } else if (e.code === 'KeyP') {
     togglePause();
   } else if (e.code === 'KeyM') {
-    muted = !muted;
+    cycleSoundMode();
   }
 });
 
@@ -527,6 +688,7 @@ document.addEventListener('visibilitychange', () => {
 // ---------------------------------------------------------------------------
 function startGame(selectedTheme) {
   theme = selectedTheme;
+  song = theme.music ? compileSong(theme.music) : null;
   state.scores = loadScores();
   renderBoard();
   reset();

@@ -295,6 +295,43 @@ const scenery = {
 };
 
 // ---------------------------------------------------------------------------
+// Music: a heavy, chugging riff in E minor (original composition)
+// ---------------------------------------------------------------------------
+const RIFF = [
+  'E2 . E2 . E2 E2 G2 - E2 . E2 . A2 - Bb2 -',
+  'E2 . E2 . E2 E2 G2 - E2 . E2 . D3 - C3 -',
+  'G2 - - . G2 . A2 - - . A2 . Bb2 - A2 -',
+  'E2 . E2 E2 . E2 E2 . D2 - D2 - Eb2 - Eb2 -',
+];
+const GUITAR = [...RIFF, ...RIFF].join(' | ');
+
+// The bass doubles the riff an octave lower
+const BASS = GUITAR.replace(/([A-G][#b]?)(\d)/g, (_, note, octave) => `${note}${octave - 1}`);
+
+const REST_BAR = '. . . . . . . . . . . . . . . .';
+const LEAD = [
+  REST_BAR, REST_BAR, REST_BAR, REST_BAR,
+  'B4 - - - . . D5 - E5 - - - G5 - E5 -',
+  'D5 - - - B4 - - - A4 - B4 - - - . .',
+  'G4 - A4 - B4 - - - D5 - - - E5 - - -',
+  'E5 - - - - - - - - - - - . . . .',
+].join(' | ');
+
+const BEAT = 'kh . h . sh . h . kh . kh . sh . h h';
+const FILL = 'kh . h . sh . h . s s s s s s s s';
+const DRUMS = [BEAT, BEAT, BEAT, FILL, BEAT, BEAT, BEAT, FILL].join(' | ');
+
+const MUSIC = {
+  bpm: 140,
+  tracks: [
+    { wave: 'sawtooth', volume: 0.03, fifth: true, notes: GUITAR },
+    { wave: 'triangle', volume: 0.16, notes: BASS },
+    { wave: 'square', volume: 0.04, notes: LEAD },
+    { drums: true, volume: 0.25, notes: DRUMS },
+  ],
+};
+
+// ---------------------------------------------------------------------------
 startGame({
   id: 'skate',
   player: SKATER,
@@ -313,5 +350,6 @@ startGame({
     },
   ],
   scenery,
+  music: MUSIC,
 });
 })();
