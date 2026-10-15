@@ -1,33 +1,35 @@
 # Dino
 
-Ett hoppspel inspirerat av Chromes "ingen internetanslutning"-dinosaurie. En liten dinosaurie springer
-längs vägen och ska undvika kaktusar och flygödlor. Farten ökar hela tiden.
+A jumping game inspired by Chrome's "no internet connection" dinosaur. A little dinosaur runs along
+the road and has to avoid cacti and pterodactyls while the speed keeps increasing.
 
-Ren HTML5 Canvas och JavaScript – inga beroenden och inget byggsteg.
+Plain HTML5 Canvas and JavaScript – no dependencies and no build step.
 
-## Spela
+## Play
 
-Öppna `index.html` i en webbläsare.
+Open `index.html` in a browser.
 
-| Tangent | Funktion |
+| Key | Action |
 |---|---|
-| `Space` / `↑` / `W` | Hoppa (håll inne för högre hopp) |
-| `↓` / `S` | Ducka – i luften: snabbare fall |
-| `P` | Paus |
-| `M` | Ljud av/på |
+| `Space` / `↑` / `W` | Jump (hold for a higher jump) |
+| `↓` / `S` | Duck – in the air: fall faster |
+| `P` | Pause |
+| `M` | Sound on/off |
 
-På mobil/surfplatta trycker man på spelytan för att hoppa.
+On phones and tablets, tap the game area to jump.
 
-## Funktioner
+## Features
 
-- Små och stora kaktusar, i grupper när farten ökar
-- Flygödlor från 250 poäng, på tre höjder (hoppa, ducka eller spring under)
-- Pixelexakt kollision
-- Dag/natt-växling var 700:e poäng
-- Topplista (topp 10) med namninmatning efter game over, sparas i webbläsarens `localStorage`
+- Small and large cacti, in groups as the speed increases
+- Pterodactyls from 250 points, at three heights (jump, duck or run underneath)
+- Pixel-perfect collision detection
+- Day/night switch every 700 points
+- Top 10 high score list with name entry after game over, stored in the browser's `localStorage`
 
-## Filer
+## Files
 
-- `index.html` – sidan och topplistans panel
-- `style.css` – utseende, inklusive nattläge
-- `game.js` – spellogik, sprites, ljud och topplista
+- `index.html` – the page and the high score panel
+- `style.css` – styling, including night mode
+- `game.js` – game logic, sprites, sound and high score list
+
+The in-game text is in Swedish.
