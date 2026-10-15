@@ -5,8 +5,8 @@ A jumping game inspired by Chrome's "no internet connection" dinosaur, in three 
 - **Dino** – a little dinosaur runs along the road and avoids cacti and pterodactyls.
 - **Skate** – a street skater rolls through the city and avoids traffic cones, pebbles, fire
   hydrants, trash cans, benches, road barriers, runaway shopping carts and pigeons.
-- **Runner** – a jogger in the park leaps hurdles, puddles, logs and strollers, and dodges loose
-  dogs and frisbees.
+- **Runner** – a race runner with a bib number leaps hurdles, puddles, water stations and
+  strollers, and dodges loose dogs and TV drones, while spectators cheer behind the barriers.
 
 The speed keeps increasing. Plain HTML5 Canvas and JavaScript – no dependencies and no build step.
 
