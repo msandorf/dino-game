@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="sv">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,21 +8,21 @@
 </head>
 <body>
   <main>
-    <canvas id="game" width="800" height="220" aria-label="Dino-spelet"></canvas>
+    <canvas id="game" width="800" height="220" aria-label="Dino game"></canvas>
     <p class="help">
-      <kbd>Space</kbd>/<kbd>↑</kbd> hoppa · <kbd>↓</kbd> ducka · <kbd>P</kbd> paus · tryck på skärmen för att hoppa
+      <kbd>Space</kbd>/<kbd>↑</kbd> jump · <kbd>↓</kbd> duck · <kbd>P</kbd> pause · <kbd>M</kbd> sound · tap the screen to jump
     </p>
     <section id="board" class="board" aria-live="polite">
       <form id="entry" class="entry" hidden>
-        <label for="name">Nytt rekord! Skriv ditt namn:</label>
+        <label for="name">New high score! Enter your name:</label>
         <div class="entry-row">
           <input id="name" name="name" maxlength="12" autocomplete="off" spellcheck="false" required>
-          <button type="submit">Spara</button>
+          <button type="submit">Save</button>
         </div>
       </form>
-      <h2>Topplista</h2>
+      <h2>High scores</h2>
       <ol id="scores"></ol>
-      <p id="empty" class="empty">Inga resultat ännu – spela!</p>
+      <p id="empty" class="empty">No scores yet – start playing!</p>
     </section>
   </main>
   <script src="game.js"></script>

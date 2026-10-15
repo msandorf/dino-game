@@ -1,21 +1,21 @@
 'use strict';
 
 // ---------------------------------------------------------------------------
-// Konfiguration
+// Configuration
 // ---------------------------------------------------------------------------
 const W = 800;
 const H = 220;
-const GROUND = 196;          // y-koordinat där dinosaurien står
-const S = 2;                 // pixelstorlek för sprites
+const GROUND = 196;          // y coordinate the dinosaur stands on
+const S = 2;                 // pixel size for sprites
 const DINO_X = 50;
 
 const START_SPEED = 360;     // px/s
 const MAX_SPEED = 820;
-const ACCEL = 6;             // px/s per sekund
+const ACCEL = 6;             // px/s per second
 const GRAVITY = 2400;        // px/s²
 const JUMP_VELOCITY = -760;
 const SHORT_JUMP_VELOCITY = -380;
-const FAST_FALL = 3;         // gravitationsfaktor när man trycker ner i luften
+const FAST_FALL = 3;         // gravity multiplier when pressing down mid-air
 const PTERO_FROM_SCORE = 250;
 const NIGHT_EVERY = 700;
 const SCORES_KEY = 'dino.scores';
@@ -24,7 +24,7 @@ const NAME_KEY = 'dino.name';
 const MAX_SCORES = 10;
 
 // ---------------------------------------------------------------------------
-// Sprites ('#' = pixel). Varje sprite får bredd/höjd i spritepixlar.
+// Sprites ('#' = pixel). Each sprite gets width/height in sprite pixels.
 // ---------------------------------------------------------------------------
 function sprite(rows) {
   const w = Math.max(...rows.map(r => r.length));
@@ -170,7 +170,7 @@ function pixelAt(spr, x, y) {
 }
 
 // ---------------------------------------------------------------------------
-// Canvas & färger
+// Canvas & colors
 // ---------------------------------------------------------------------------
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -198,7 +198,7 @@ function drawSprite(spr, x, y, color = colors.fg) {
 }
 
 // ---------------------------------------------------------------------------
-// Ljud (enkla pip via WebAudio)
+// Sound (simple beeps via WebAudio)
 // ---------------------------------------------------------------------------
 let audio = null;
 let muted = false;
@@ -216,7 +216,7 @@ function beep(freq, duration, type = 'square', volume = 0.05) {
     osc.connect(gain).connect(audio.destination);
     osc.start();
     osc.stop(audio.currentTime + duration);
-  } catch (_) { /* ljud är inte kritiskt */ }
+  } catch (_) { /* sound is not critical */ }
 }
 
 const sound = {
@@ -226,20 +226,20 @@ const sound = {
 };
 
 // ---------------------------------------------------------------------------
-// Topplista (sparas i webbläsarens localStorage)
+// High score list (stored in the browser's localStorage)
 // ---------------------------------------------------------------------------
 function storageGet(key) {
   try { return localStorage.getItem(key); } catch (_) { return null; }
 }
 function storageSet(key, value) {
-  try { localStorage.setItem(key, value); } catch (_) { /* ignorera */ }
+  try { localStorage.setItem(key, value); } catch (_) { /* ignore */ }
 }
 
 function loadScores() {
   let list = [];
   try { list = JSON.parse(storageGet(SCORES_KEY)) || []; } catch (_) { list = []; }
   list = list.filter(e => e && typeof e.name === 'string' && Number.isFinite(e.score));
-  // Flytta över rekordet från den tidigare versionen som saknade namn
+  // Migrate the record from the previous version, which had no names
   const legacy = Number(storageGet(LEGACY_HISCORE_KEY)) || 0;
   if (list.length === 0 && legacy > 0) list.push({ name: '???', score: legacy, date: Date.now() });
   return list.sort((a, b) => b.score - a.score).slice(0, MAX_SCORES);
@@ -257,7 +257,7 @@ function qualifies(score) {
 function addScore(name, score) {
   const entry = { name, score, date: Date.now() };
   state.scores.push(entry);
-  // Vid lika poäng hamnar det äldre resultatet först
+  // On equal scores the older result comes first
   state.scores.sort((a, b) => b.score - a.score || a.date - b.date);
   state.scores = state.scores.slice(0, MAX_SCORES);
   saveScores(state.scores);
@@ -269,7 +269,7 @@ function topScore() {
 }
 
 // ---------------------------------------------------------------------------
-// Topplistans HTML-panel
+// High score HTML panel
 // ---------------------------------------------------------------------------
 const board = document.getElementById('board');
 const entryForm = document.getElementById('entry');
@@ -305,7 +305,7 @@ function finishEntry(name) {
   nameInput.blur();
   let latest = null;
   if (name !== null) {
-    name = name.trim().toUpperCase().slice(0, 12) || 'ANONYM';
+    name = name.trim().toUpperCase().slice(0, 12) || 'ANONYMOUS';
     storageSet(NAME_KEY, name);
     latest = addScore(name, state.score);
   }
@@ -320,11 +320,11 @@ entryForm.addEventListener('submit', e => {
 });
 
 nameInput.addEventListener('keydown', e => {
-  if (e.key === 'Escape') finishEntry(null); // hoppa över utan att spara
+  if (e.key === 'Escape') finishEntry(null); // skip without saving
 });
 
 // ---------------------------------------------------------------------------
-// Speltillstånd
+// Game state
 // ---------------------------------------------------------------------------
 const state = {
   mode: 'start',             // start | running | paused | entry | over
@@ -332,7 +332,7 @@ const state = {
   distance: 0,
   score: 0,
   scores: [],
-  flash: 0,                  // blinkar poängen vid varje 100
+  flash: 0,                  // blinks the score at every 100
   overAt: 0,
   night: false,
   dino: null,
@@ -375,12 +375,12 @@ function randomBump(x) {
 }
 
 // ---------------------------------------------------------------------------
-// Hinder
+// Obstacles
 // ---------------------------------------------------------------------------
 function spawnObstacle() {
   const canPtero = state.score >= PTERO_FROM_SCORE;
   if (canPtero && Math.random() < 0.25) {
-    // Tre höjder: låg (hoppa), mellan (ducka eller hoppa), hög (spring under)
+    // Three heights: low (jump), middle (duck or jump), high (run underneath)
     const bottoms = [GROUND - 4, GROUND - 30, GROUND - 58];
     const bottom = bottoms[Math.floor(Math.random() * bottoms.length)];
     state.obstacles.push({
@@ -392,7 +392,7 @@ function spawnObstacle() {
 
   const large = Math.random() < 0.45;
   const spr = large ? CACTUS_LARGE : CACTUS_SMALL;
-  // Fler kaktusar i grupp när det går fortare
+  // More cacti per group at higher speeds
   const maxGroup = state.speed > 560 ? 3 : state.speed > 440 ? 2 : 1;
   const count = 1 + Math.floor(Math.random() * maxGroup);
   for (let i = 0; i < count; i++) {
@@ -403,13 +403,13 @@ function spawnObstacle() {
 }
 
 function nextGap() {
-  // Minsta avstånd växer med farten så att det alltid går att klara
+  // Minimum gap grows with speed so it is always possible to clear
   const min = state.speed * 0.75;
   return min + Math.random() * state.speed * 0.9;
 }
 
 // ---------------------------------------------------------------------------
-// Kollision: först rektangel, sedan pixelexakt
+// Collision: bounding box first, then pixel-perfect
 // ---------------------------------------------------------------------------
 function collides(a, ax, ay, b, bx, by) {
   ax = Math.round(ax); ay = Math.round(ay); bx = Math.round(bx); by = Math.round(by);
@@ -430,7 +430,7 @@ function collides(a, ax, ay, b, bx, by) {
 }
 
 // ---------------------------------------------------------------------------
-// Uppdatering
+// Update
 // ---------------------------------------------------------------------------
 function dinoSprite() {
   const d = state.dino;
@@ -448,7 +448,7 @@ function dinoTop(spr) {
 function update(dt) {
   const d = state.dino;
 
-  // Fart & poäng
+  // Speed & score
   state.speed = Math.min(MAX_SPEED, state.speed + ACCEL * dt);
   const dx = state.speed * dt;
   state.distance += dx;
@@ -463,7 +463,7 @@ function update(dt) {
   state.score = newScore;
   state.flash = Math.max(0, state.flash - dt);
 
-  // Dinosaurien
+  // The dinosaur
   d.frameTime += dt;
   if (input.jump && d.onGround) {
     d.vy = JUMP_VELOCITY;
@@ -471,7 +471,7 @@ function update(dt) {
     sound.jump();
   }
   if (!d.onGround) {
-    // Släpper man hoppknappen tidigt blir hoppet lägre
+    // Releasing the jump key early gives a lower jump
     if (!input.jump && d.vy < SHORT_JUMP_VELOCITY) d.vy = SHORT_JUMP_VELOCITY;
     d.vy += GRAVITY * (input.down ? FAST_FALL : 1) * dt;
     d.y += d.vy * dt;
@@ -479,7 +479,7 @@ function update(dt) {
   }
   d.ducking = input.down && d.onGround;
 
-  // Hinder
+  // Obstacles
   state.nextObstacleIn -= dx;
   if (state.nextObstacleIn <= 0) {
     spawnObstacle();
@@ -494,7 +494,7 @@ function update(dt) {
   }
   state.obstacles = state.obstacles.filter(o => o.x + o.sprite.w * S > -10);
 
-  // Kollision
+  // Collision
   const spr = dinoSprite();
   const top = dinoTop(spr);
   for (const o of state.obstacles) {
@@ -549,7 +549,7 @@ function render() {
 
   for (const c of state.clouds) drawSprite(CLOUD, c.x, c.y, colors.cloud);
 
-  // Mark
+  // Ground
   ctx.fillStyle = colors.fg;
   ctx.fillRect(0, GROUND, W, 2);
   for (const b of state.bumps) ctx.fillRect(Math.round(b.x), b.y, b.w, 2);
@@ -559,7 +559,7 @@ function render() {
   const spr = dinoSprite();
   drawSprite(spr, DINO_X, dinoTop(spr));
 
-  // Poäng
+  // Score
   ctx.fillStyle = colors.fg;
   ctx.font = 'bold 18px "Courier New", monospace';
   ctx.textAlign = 'right';
@@ -570,31 +570,31 @@ function render() {
 
   ctx.textAlign = 'center';
   if (state.mode === 'start') {
-    ctx.fillText('Tryck SPACE för att starta', W / 2, 80);
+    ctx.fillText('Press SPACE to start', W / 2, 80);
   } else if (state.mode === 'paused') {
-    ctx.fillText('PAUS – tryck P för att fortsätta', W / 2, 80);
+    ctx.fillText('PAUSED – press P to continue', W / 2, 80);
   } else if (state.mode === 'over' || state.mode === 'entry') {
     ctx.font = 'bold 26px "Courier New", monospace';
     ctx.fillText('G A M E   O V E R', W / 2, 62);
     ctx.font = 'bold 16px "Courier New", monospace';
     ctx.fillText(state.mode === 'entry'
-      ? `${state.score} poäng – skriv ditt namn nedan`
-      : 'Tryck SPACE för att spela igen', W / 2, 100);
+      ? `${state.score} points – enter your name below`
+      : 'Press SPACE to play again', W / 2, 100);
   }
   if (muted) {
     ctx.textAlign = 'left';
     ctx.font = '14px "Courier New", monospace';
-    ctx.fillText('ljud av (M)', 16, 12);
+    ctx.fillText('sound off (M)', 16, 12);
   }
 }
 
 // ---------------------------------------------------------------------------
-// Spelloop
+// Game loop
 // ---------------------------------------------------------------------------
 let last = performance.now();
 
 function loop(now) {
-  const dt = Math.min(0.05, (now - last) / 1000); // undvik stora hopp efter flikbyte
+  const dt = Math.min(0.05, (now - last) / 1000); // avoid big jumps after switching tabs
   last = now;
   if (state.mode === 'running') update(dt);
   render();
@@ -608,7 +608,7 @@ function pressJump() {
   if (state.mode === 'start') {
     setMode('running');
   } else if (state.mode === 'over') {
-    if (performance.now() - state.overAt < 500) return; // undvik oavsiktlig omstart
+    if (performance.now() - state.overAt < 500) return; // avoid accidental restarts
     reset();
     renderBoard();
     setMode('running');
@@ -627,7 +627,7 @@ const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW'];
 const DOWN_KEYS = ['ArrowDown', 'KeyS'];
 
 document.addEventListener('keydown', e => {
-  if (e.target === nameInput) return; // låt namnfältet ta emot tangenterna
+  if (e.target === nameInput) return; // let the name field receive the keys
   if (JUMP_KEYS.includes(e.code)) {
     e.preventDefault();
     if (!e.repeat) pressJump();

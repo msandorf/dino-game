@@ -31,5 +31,3 @@ On phones and tablets, tap the game area to jump.
 - `index.html` – the page and the high score panel
 - `style.css` – styling, including night mode
 - `game.js` – game logic, sprites, sound and high score list
-
-The in-game text is in Swedish.
