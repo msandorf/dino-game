@@ -124,3 +124,8 @@ kbd {
 }
 
 .switch a { color: inherit; }
+
+.switch a[aria-current] {
+  font-weight: bold;
+  text-decoration: none;
+}
