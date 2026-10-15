@@ -117,3 +117,10 @@ kbd {
 .entry input { flex: 1; min-width: 0; text-transform: uppercase; }
 .entry button { cursor: pointer; font-weight: bold; }
 .entry button:hover { background: var(--fg); color: var(--bg); }
+
+.switch {
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+.switch a { color: inherit; }

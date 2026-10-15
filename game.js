@@ -1,13 +1,16 @@
 'use strict';
 
+// Shared game engine. A theme file (themes/*.js) defines the player, the
+// obstacles and the scenery, and starts the game with startGame(theme).
+
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 const W = 800;
 const H = 220;
-const GROUND = 196;          // y coordinate the dinosaur stands on
+const GROUND = 196;          // y coordinate the player stands on
 const S = 2;                 // pixel size for sprites
-const DINO_X = 50;
+const PLAYER_X = 50;
 
 const START_SPEED = 360;     // px/s
 const MAX_SPEED = 820;
@@ -16,12 +19,10 @@ const GRAVITY = 2400;        // px/s²
 const JUMP_VELOCITY = -760;
 const SHORT_JUMP_VELOCITY = -380;
 const FAST_FALL = 3;         // gravity multiplier when pressing down mid-air
-const PTERO_FROM_SCORE = 250;
 const NIGHT_EVERY = 700;
-const SCORES_KEY = 'dino.scores';
-const LEGACY_HISCORE_KEY = 'dino.hiscore';
-const NAME_KEY = 'dino.name';
 const MAX_SCORES = 10;
+
+let theme = null;
 
 // ---------------------------------------------------------------------------
 // Sprites ('#' = pixel). Each sprite gets width/height in sprite pixels.
@@ -31,142 +32,17 @@ function sprite(rows) {
   return { rows, w, h: rows.length };
 }
 
-const DINO_BODY = [
-  '...........########.',
-  '..........##.#######',
-  '..........##########',
-  '..........##########',
-  '..........#####.....',
-  '..........########..',
-  '#........#####......',
-  '#.......#######.....',
-  '##.....#########....',
-  '###...##########.#..',
-  '################....',
-  '.###############....',
-  '..#############.....',
-  '...###########......',
-  '....#########.......',
-  '.....#######........',
-];
-const DINO_DEAD_HEAD = [
-  '...........########.',
-  '..........#...######',
-  '..........#.#.######',
-  '..........#...######',
-];
-const LEGS_STAND = ['.....###.##.', '.....##...#.', '.....#....#.', '.....##...##'];
-const LEGS_RUN_A = ['.....###.##.', '.....##...##', '.....#......', '.....##.....'];
-const LEGS_RUN_B = ['.....###.##.', '.....###..#.', '...........#', '..........##'];
-
-const DINO = {
-  stand: sprite([...DINO_BODY, ...LEGS_STAND]),
-  runA: sprite([...DINO_BODY, ...LEGS_RUN_A]),
-  runB: sprite([...DINO_BODY, ...LEGS_RUN_B]),
-  dead: sprite([...DINO_DEAD_HEAD, ...DINO_BODY.slice(4), ...LEGS_STAND]),
-};
-
-const DUCK_BODY = [
-  '.....................########.',
-  '#...................##.#######',
-  '##......###########.##########',
-  '###..#########################',
-  '############################..',
-  '.###################.#######..',
-  '..##################..........',
-  '...############..#............',
-  '....#########.....#...........',
-];
-DINO.duckA = sprite([...DUCK_BODY, '.....###.##...', '.....##....#..', '.....#........', '.....##.......']);
-DINO.duckB = sprite([...DUCK_BODY, '.....###.##...', '.....#....##..', '...........#..', '..........##..']);
-
-const CACTUS_SMALL = sprite([
-  '...##....',
-  '..####...',
-  '..####..#',
-  '#.####..#',
-  '#.####.##',
-  '#.######.',
-  '#######..',
-  '.######..',
-  '..####...',
-  '..####...',
-  '..####...',
-  '..####...',
-  '..####...',
-  '..####...',
-  '..####...',
-  '..####...',
-]);
-
-const CACTUS_LARGE = sprite([
-  '.....###.....',
-  '....#####....',
-  '....#####....',
-  '....#####..##',
-  '##..#####..##',
-  '##..#####..##',
-  '##..#####..##',
-  '##..#####..##',
-  '##..#####.###',
-  '###.########.',
-  '.#########...',
-  '..#######....',
-  '....#####....',
-  '....#####....',
-  '....#####....',
-  '....#####....',
-  '....#####....',
-  '....#####....',
-  '....#####....',
-  '....#####....',
-  '....#####....',
-]);
-
-const PTERO_UP = sprite([
-  '......#..........',
-  '......##.........',
-  '......###........',
-  '...#..####.......',
-  '..##..#####......',
-  '.###########.....',
-  '#################',
-  '......##########.',
-  '.......######....',
-  '.................',
-  '.................',
-  '.................',
-  '.................',
-]);
-const PTERO_DOWN = sprite([
-  '.................',
-  '.................',
-  '.................',
-  '...#.............',
-  '..##.............',
-  '.################',
-  '#################',
-  '......##########.',
-  '......######.....',
-  '......####.......',
-  '......###........',
-  '......##.........',
-  '......#..........',
-]);
-
-const CLOUD = sprite([
-  '.........####.........',
-  '.......##....##.......',
-  '....###........#......',
-  '...#............###...',
-  '.##................##.',
-  '#....................#',
-  '######################',
-]);
-
 function pixelAt(spr, x, y) {
   const row = spr.rows[y];
   return row !== undefined && row[x] === '#';
+}
+
+function randomBetween(range) {
+  return range ? range[0] + Math.random() * (range[1] - range[0]) : 0;
+}
+
+function pickRandom(list) {
+  return list[Math.floor(Math.random() * list.length)];
 }
 
 // ---------------------------------------------------------------------------
@@ -180,8 +56,8 @@ canvas.height = H * dpr;
 ctx.scale(dpr, dpr);
 
 const COLORS = {
-  day: { fg: '#535353', bg: '#f7f7f7', cloud: '#c9c9c9' },
-  night: { fg: '#c4c4c4', bg: '#202124', cloud: '#4a4b4e' },
+  day: { fg: '#535353', bg: '#f7f7f7', faint: '#c9c9c9', far: '#e6e6e6' },
+  night: { fg: '#c4c4c4', bg: '#202124', faint: '#4a4b4e', far: '#2d2e31' },
 };
 let colors = COLORS.day;
 
@@ -226,7 +102,7 @@ const sound = {
 };
 
 // ---------------------------------------------------------------------------
-// High score list (stored in the browser's localStorage)
+// High score list (stored in the browser's localStorage, one list per theme)
 // ---------------------------------------------------------------------------
 function storageGet(key) {
   try { return localStorage.getItem(key); } catch (_) { return null; }
@@ -235,18 +111,21 @@ function storageSet(key, value) {
   try { localStorage.setItem(key, value); } catch (_) { /* ignore */ }
 }
 
+function scoresKey() { return `${theme.id}.scores`; }
+function nameKey() { return `${theme.id}.name`; }
+
 function loadScores() {
   let list = [];
-  try { list = JSON.parse(storageGet(SCORES_KEY)) || []; } catch (_) { list = []; }
+  try { list = JSON.parse(storageGet(scoresKey())) || []; } catch (_) { list = []; }
   list = list.filter(e => e && typeof e.name === 'string' && Number.isFinite(e.score));
-  // Migrate the record from the previous version, which had no names
-  const legacy = Number(storageGet(LEGACY_HISCORE_KEY)) || 0;
+  // Migrate a record from an older version that had no names
+  const legacy = theme.legacyHiscoreKey ? Number(storageGet(theme.legacyHiscoreKey)) || 0 : 0;
   if (list.length === 0 && legacy > 0) list.push({ name: '???', score: legacy, date: Date.now() });
   return list.sort((a, b) => b.score - a.score).slice(0, MAX_SCORES);
 }
 
 function saveScores(list) {
-  storageSet(SCORES_KEY, JSON.stringify(list));
+  storageSet(scoresKey(), JSON.stringify(list));
 }
 
 function qualifies(score) {
@@ -295,7 +174,7 @@ function renderBoard(latest = null) {
 
 function showEntry() {
   entryForm.hidden = false;
-  nameInput.value = storageGet(NAME_KEY) || '';
+  nameInput.value = storageGet(nameKey()) || '';
   nameInput.focus();
   nameInput.select();
 }
@@ -306,7 +185,7 @@ function finishEntry(name) {
   let latest = null;
   if (name !== null) {
     name = name.trim().toUpperCase().slice(0, 12) || 'ANONYMOUS';
-    storageSet(NAME_KEY, name);
+    storageSet(nameKey(), name);
     latest = addScore(name, state.score);
   }
   renderBoard(latest);
@@ -335,12 +214,10 @@ const state = {
   flash: 0,                  // blinks the score at every 100
   overAt: 0,
   night: false,
-  dino: null,
+  player: null,
   obstacles: [],
-  clouds: [],
-  bumps: [],
   nextObstacleIn: 0,
-  groundOffset: 0,
+  nextSpec: null,            // obstacle type that spawns when nextObstacleIn runs out
 };
 
 const input = { jump: false, down: false };
@@ -350,8 +227,9 @@ function reset() {
   state.distance = 0;
   state.score = 0;
   state.flash = 0;
-  state.dino = { y: 0, vy: 0, onGround: true, ducking: false, frameTime: 0 };
+  state.player = { y: 0, vy: 0, onGround: true, ducking: false, frameTime: 0 };
   state.obstacles = [];
+  state.nextSpec = chooseSpec();
   state.nextObstacleIn = 600;
   setNight(false);
 }
@@ -362,50 +240,53 @@ function setNight(on) {
   document.body.classList.toggle('night', on);
 }
 
-function initScenery() {
-  state.clouds = Array.from({ length: 3 }, (_, i) => ({
-    x: 150 + i * 280 + Math.random() * 100,
-    y: 30 + Math.random() * 60,
-  }));
-  state.bumps = Array.from({ length: 40 }, () => randomBump(Math.random() * W));
-}
-
-function randomBump(x) {
-  return { x, y: GROUND + 4 + Math.floor(Math.random() * 12), w: 1 + Math.floor(Math.random() * 3) * 2 };
-}
-
 // ---------------------------------------------------------------------------
 // Obstacles
+//
+// Each obstacle spec in the theme has:
+//   frames        sprite list (animated when more than one)
+//   weight        relative spawn chance
+//   minScore      first score it can appear at (default 0)
+//   maxGroup      how many can appear side by side (default 1)
+//   flyAt         list of bottom y positions; makes it a flying obstacle
+//   extraSpeed    [min, max] px/s it moves towards the player on its own
+//   frameDuration seconds per animation frame
 // ---------------------------------------------------------------------------
-function spawnObstacle() {
-  const canPtero = state.score >= PTERO_FROM_SCORE;
-  if (canPtero && Math.random() < 0.25) {
-    // Three heights: low (jump), middle (duck or jump), high (run underneath)
-    const bottoms = [GROUND - 4, GROUND - 30, GROUND - 58];
-    const bottom = bottoms[Math.floor(Math.random() * bottoms.length)];
-    state.obstacles.push({
-      kind: 'ptero', x: W + 20, y: bottom - PTERO_UP.h * S,
-      sprite: PTERO_UP, frameTime: 0, extraSpeed: 40 + Math.random() * 60,
-    });
+function chooseSpec() {
+  const options = theme.obstacles.filter(o => state.score >= (o.minScore || 0));
+  let r = Math.random() * options.reduce((sum, o) => sum + o.weight, 0);
+  for (const o of options) {
+    r -= o.weight;
+    if (r < 0) return o;
+  }
+  return options[options.length - 1];
+}
+
+function spawnObstacle(spec) {
+  const first = spec.frames[0];
+  const base = {
+    frames: spec.frames, sprite: first, frameTime: 0,
+    frameDuration: spec.frameDuration || 0.18,
+    extraSpeed: randomBetween(spec.extraSpeed),
+  };
+  if (spec.flyAt) {
+    state.obstacles.push({ ...base, x: W + 20, y: pickRandom(spec.flyAt) - first.h * S });
     return;
   }
-
-  const large = Math.random() < 0.45;
-  const spr = large ? CACTUS_LARGE : CACTUS_SMALL;
-  // More cacti per group at higher speeds
-  const maxGroup = state.speed > 560 ? 3 : state.speed > 440 ? 2 : 1;
-  const count = 1 + Math.floor(Math.random() * maxGroup);
+  // More obstacles per group at higher speeds
+  const speedGroup = state.speed > 560 ? 3 : state.speed > 440 ? 2 : 1;
+  const count = 1 + Math.floor(Math.random() * Math.min(spec.maxGroup || 1, speedGroup));
   for (let i = 0; i < count; i++) {
-    state.obstacles.push({
-      kind: 'cactus', x: W + 20 + i * (spr.w * S - 2), y: GROUND + 2 - spr.h * S, sprite: spr,
-    });
+    state.obstacles.push({ ...base, x: W + 20 + i * (first.w * S - 2), y: GROUND + 2 - first.h * S });
   }
 }
 
-function nextGap() {
+function nextGap(spec) {
   // Minimum gap grows with speed so it is always possible to clear
   const min = state.speed * 0.75;
-  return min + Math.random() * state.speed * 0.9;
+  // Obstacles that move on their own catch up with the previous one, so they get a head start
+  const catchUp = spec.extraSpeed ? spec.extraSpeed[1] * (W - PLAYER_X) / state.speed : 0;
+  return min + catchUp + Math.random() * state.speed * 0.9;
 }
 
 // ---------------------------------------------------------------------------
@@ -432,21 +313,23 @@ function collides(a, ax, ay, b, bx, by) {
 // ---------------------------------------------------------------------------
 // Update
 // ---------------------------------------------------------------------------
-function dinoSprite() {
-  const d = state.dino;
-  if (state.mode === 'over' || state.mode === 'entry') return DINO.dead;
-  if (state.mode === 'start' || !d.onGround) return DINO.stand;
-  const alt = Math.floor(d.frameTime / 0.1) % 2 === 0;
-  if (d.ducking) return alt ? DINO.duckA : DINO.duckB;
-  return alt ? DINO.runA : DINO.runB;
+function playerSprite() {
+  const p = state.player;
+  const sprites = theme.player;
+  if (state.mode === 'over' || state.mode === 'entry') return sprites.dead;
+  if (state.mode === 'start') return sprites.stand;
+  if (!p.onGround) return sprites.jump || sprites.stand;
+  const alt = Math.floor(p.frameTime / (sprites.frameDuration || 0.1)) % 2 === 0;
+  if (p.ducking) return alt ? sprites.duckA : sprites.duckB;
+  return alt ? sprites.runA : sprites.runB;
 }
 
-function dinoTop(spr) {
-  return GROUND + 2 - spr.h * S + state.dino.y;
+function playerTop(spr) {
+  return GROUND + 2 - spr.h * S + state.player.y;
 }
 
 function update(dt) {
-  const d = state.dino;
+  const p = state.player;
 
   // Speed & score
   state.speed = Math.min(MAX_SPEED, state.speed + ACCEL * dt);
@@ -463,60 +346,49 @@ function update(dt) {
   state.score = newScore;
   state.flash = Math.max(0, state.flash - dt);
 
-  // The dinosaur
-  d.frameTime += dt;
-  if (input.jump && d.onGround) {
-    d.vy = JUMP_VELOCITY;
-    d.onGround = false;
+  // The player
+  p.frameTime += dt;
+  if (input.jump && p.onGround) {
+    p.vy = JUMP_VELOCITY;
+    p.onGround = false;
     sound.jump();
   }
-  if (!d.onGround) {
+  if (!p.onGround) {
     // Releasing the jump key early gives a lower jump
-    if (!input.jump && d.vy < SHORT_JUMP_VELOCITY) d.vy = SHORT_JUMP_VELOCITY;
-    d.vy += GRAVITY * (input.down ? FAST_FALL : 1) * dt;
-    d.y += d.vy * dt;
-    if (d.y >= 0) { d.y = 0; d.vy = 0; d.onGround = true; }
+    if (!input.jump && p.vy < SHORT_JUMP_VELOCITY) p.vy = SHORT_JUMP_VELOCITY;
+    p.vy += GRAVITY * (input.down ? FAST_FALL : 1) * dt;
+    p.y += p.vy * dt;
+    if (p.y >= 0) { p.y = 0; p.vy = 0; p.onGround = true; }
   }
-  d.ducking = input.down && d.onGround;
+  p.ducking = input.down && p.onGround;
 
   // Obstacles
   state.nextObstacleIn -= dx;
   if (state.nextObstacleIn <= 0) {
-    spawnObstacle();
-    state.nextObstacleIn = nextGap();
+    spawnObstacle(state.nextSpec);
+    state.nextSpec = chooseSpec();
+    state.nextObstacleIn = nextGap(state.nextSpec);
   }
   for (const o of state.obstacles) {
-    o.x -= dx + (o.extraSpeed || 0) * dt;
-    if (o.kind === 'ptero') {
+    o.x -= dx + o.extraSpeed * dt;
+    if (o.frames.length > 1) {
       o.frameTime += dt;
-      o.sprite = Math.floor(o.frameTime / 0.18) % 2 === 0 ? PTERO_UP : PTERO_DOWN;
+      o.sprite = o.frames[Math.floor(o.frameTime / o.frameDuration) % o.frames.length];
     }
   }
   state.obstacles = state.obstacles.filter(o => o.x + o.sprite.w * S > -10);
 
   // Collision
-  const spr = dinoSprite();
-  const top = dinoTop(spr);
+  const spr = playerSprite();
+  const top = playerTop(spr);
   for (const o of state.obstacles) {
-    if (collides(spr, DINO_X, top, o.sprite, o.x, o.y)) {
+    if (collides(spr, PLAYER_X, top, o.sprite, o.x, o.y)) {
       gameOver();
       return;
     }
   }
 
-  updateScenery(dx);
-}
-
-function updateScenery(dx) {
-  state.groundOffset = (state.groundOffset + dx) % W;
-  for (const c of state.clouds) {
-    c.x -= dx * 0.15;
-    if (c.x < -CLOUD.w * S) { c.x = W + Math.random() * 200; c.y = 30 + Math.random() * 60; }
-  }
-  for (const b of state.bumps) {
-    b.x -= dx;
-    if (b.x < -4) Object.assign(b, randomBump(W + Math.random() * 40));
-  }
+  theme.scenery.update(dx);
 }
 
 function setMode(mode) {
@@ -547,17 +419,17 @@ function render() {
   ctx.fillStyle = colors.bg;
   ctx.fillRect(0, 0, W, H);
 
-  for (const c of state.clouds) drawSprite(CLOUD, c.x, c.y, colors.cloud);
+  theme.scenery.drawBackground();
 
   // Ground
   ctx.fillStyle = colors.fg;
   ctx.fillRect(0, GROUND, W, 2);
-  for (const b of state.bumps) ctx.fillRect(Math.round(b.x), b.y, b.w, 2);
+  theme.scenery.drawGround();
 
   for (const o of state.obstacles) drawSprite(o.sprite, o.x, o.y);
 
-  const spr = dinoSprite();
-  drawSprite(spr, DINO_X, dinoTop(spr));
+  const spr = playerSprite();
+  drawSprite(spr, PLAYER_X, playerTop(spr));
 
   // Score
   ctx.fillStyle = colors.fg;
@@ -654,8 +526,13 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ---------------------------------------------------------------------------
-state.scores = loadScores();
-renderBoard();
-reset();
-initScenery();
-requestAnimationFrame(loop);
+// Start
+// ---------------------------------------------------------------------------
+function startGame(selectedTheme) {
+  theme = selectedTheme;
+  state.scores = loadScores();
+  renderBoard();
+  reset();
+  theme.scenery.init();
+  requestAnimationFrame(loop);
+}

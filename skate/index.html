@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skate</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <main>
+    <canvas id="game" width="800" height="220" aria-label="Skate game"></canvas>
+    <p class="help">
+      <kbd>Space</kbd>/<kbd>↑</kbd> ollie · <kbd>↓</kbd> duck · <kbd>P</kbd> pause · <kbd>M</kbd> sound · tap the screen to jump
+    </p>
+    <section id="board" class="board" aria-live="polite">
+      <form id="entry" class="entry" hidden>
+        <label for="name">New high score! Enter your name:</label>
+        <div class="entry-row">
+          <input id="name" name="name" maxlength="12" autocomplete="off" spellcheck="false" required>
+          <button type="submit">Save</button>
+        </div>
+      </form>
+      <h2>High scores</h2>
+      <ol id="scores"></ol>
+      <p id="empty" class="empty">No scores yet – start playing!</p>
+    </section>
+    <nav class="switch"><a href="../">← Play as the dino</a></nav>
+  </main>
+  <script src="../game.js"></script>
+  <script src="../themes/skate.js"></script>
+</body>
+</html>
