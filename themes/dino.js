@@ -179,7 +179,6 @@ const scenery = {
 // ---------------------------------------------------------------------------
 startGame({
   id: 'dino',
-  legacyHiscoreKey: 'dino.hiscore',
   player: DINO,
   obstacles: [
     { frames: [CACTUS_SMALL], weight: 0.41, maxGroup: 3 },

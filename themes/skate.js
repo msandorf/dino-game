@@ -3,8 +3,8 @@
 // Skate theme: a street skater dodging cones, hydrants, benches and pigeons.
 (() => {
 // ---------------------------------------------------------------------------
-// Player: a skater on a board. The legs and arms are shared between frames,
-// the board and wheels at the bottom change to make it roll.
+// Player: a skater on a board. The head and legs are shared between frames;
+// the arms, board and wheels change to make it roll.
 // ---------------------------------------------------------------------------
 const HEAD = [
   '........###.........',
@@ -43,9 +43,11 @@ const BOARD = '.#################..';
 const WHEELS_A = ['...##.........##....', '...##.........##....'];
 const WHEELS_B = ['...#.#........#.#...', '....#..........#....'];
 
+const STAND = sprite([...HEAD, ...TORSO_A, ...LEGS, BOARD, ...WHEELS_A]);
+
 const SKATER = {
-  stand: sprite([...HEAD, ...TORSO_A, ...LEGS, BOARD, ...WHEELS_A]),
-  runA: sprite([...HEAD, ...TORSO_A, ...LEGS, BOARD, ...WHEELS_A]),
+  stand: STAND,
+  runA: STAND,
   runB: sprite([...HEAD, ...TORSO_B, ...LEGS, BOARD, ...WHEELS_B]),
   // Ollie: knees tucked up, arms out for balance
   jump: sprite([
@@ -216,7 +218,8 @@ const PIGEON_UP = sprite([
   '..............',
   '..............',
   '..............',
-]);const PIGEON_DOWN = sprite([
+]);
+const PIGEON_DOWN = sprite([
   '..............',
   '..............',
   '..............',

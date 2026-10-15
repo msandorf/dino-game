@@ -118,9 +118,6 @@ function loadScores() {
   let list = [];
   try { list = JSON.parse(storageGet(scoresKey())) || []; } catch (_) { list = []; }
   list = list.filter(e => e && typeof e.name === 'string' && Number.isFinite(e.score));
-  // Migrate a record from an older version that had no names
-  const legacy = theme.legacyHiscoreKey ? Number(storageGet(theme.legacyHiscoreKey)) || 0 : 0;
-  if (list.length === 0 && legacy > 0) list.push({ name: '???', score: legacy, date: Date.now() });
   return list.sort((a, b) => b.score - a.score).slice(0, MAX_SCORES);
 }
 
